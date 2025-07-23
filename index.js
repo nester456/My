@@ -1,3 +1,4 @@
+
 import { makeWASocket, useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys'
 import { Boom } from '@hapi/boom'
 import qrcode from 'qrcode'
@@ -11,7 +12,7 @@ const whatsappGroupId = process.env.WHATSAPP_GROUP_ID
 const bot = new TelegramBot(telegramToken, { polling: false })
 
 const startBot = async () => {
-  const { state, saveCreds } = await useMultiFileAuthState('auth_info')
+  const { state, saveCreds } = await useMultiFileAuthState('/mnt/auth')
 
   const sock = makeWASocket({
     auth: state,
@@ -27,7 +28,7 @@ const startBot = async () => {
         if (err) {
           console.error('❌ QR генерація не вдалася:', err)
         } else {
-          console.log('📲 Відкрий у браузері для сканування QR-коду:\n')
+          console.log('📲 Відкрий у браузері для сканування QR-коду:')
           console.log(url)
         }
       })
