@@ -78,4 +78,4 @@ const startBot = async () => {
   })
 }
 
-startBot()іг
+startBot()
