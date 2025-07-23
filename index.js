@@ -1,7 +1,7 @@
-
 import { makeWASocket, useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys'
 import { Boom } from '@hapi/boom'
 import qrcode from 'qrcode'
+import fs from 'fs'
 import TelegramBot from 'node-telegram-bot-api'
 import 'dotenv/config'
 
@@ -12,7 +12,7 @@ const whatsappGroupId = process.env.WHATSAPP_GROUP_ID
 const bot = new TelegramBot(telegramToken, { polling: false })
 
 const startBot = async () => {
-  const { state, saveCreds } = await useMultiFileAuthState('/mnt/auth')
+  const { state, saveCreds } = await useMultiFileAuthState('/mnt/auth') // Railway-compatible path
 
   const sock = makeWASocket({
     auth: state,
@@ -24,12 +24,12 @@ const startBot = async () => {
 
   sock.ev.on('connection.update', async ({ connection, qr }) => {
     if (qr) {
-      qrcode.toDataURL(qr, (err, url) => {
+      // Збереження QR-коду у файл
+      qrcode.toFile('./qr.png', qr, { width: 300 }, (err) => {
         if (err) {
-          console.error('❌ QR генерація не вдалася:', err)
+          console.error('❌ Не вдалося зберегти QR:', err)
         } else {
-          console.log('📲 Відкрий у браузері для сканування QR-коду:')
-          console.log(url)
+          console.log('📸 QR-код збережено у файл: qr.png')
         }
       })
     }
@@ -51,13 +51,14 @@ const startBot = async () => {
 
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return
+
     for (const msg of messages) {
       const fromGroup = msg.key.remoteJid === whatsappGroupId
       const isText = msg.message?.conversation || msg.message?.extendedTextMessage?.text
-
       if (!fromGroup || !isText) return
 
       const text = msg.message.conversation || msg.message.extendedTextMessage.text
+
       const alertPhrases = [
         'Alert: Level Yellow',
         'Тривога: Рівень Жовтий',
