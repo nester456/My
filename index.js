@@ -4,7 +4,7 @@ import qrcode from 'qrcode'
 import TelegramBot from 'node-telegram-bot-api'
 import 'dotenv/config'
 
-const telegramToken = process.env.TELEGRAM_TOKEN
+const telegramToken = process.env.TELEGRAM_BOT_TOKEN
 const telegramChannelId = process.env.TELEGRAM_CHANNEL_ID
 const whatsappGroupId = process.env.WHATSAPP_GROUP_ID
 
