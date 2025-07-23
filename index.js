@@ -1,96 +1,81 @@
-import {
-  makeWASocket,
-  useMultiFileAuthState,
-  fetchLatestBaileysVersion,
-  DisconnectReason
-} from '@whiskeysockets/baileys'
+import makeWASocket, { useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys'
 import { Boom } from '@hapi/boom'
-import fetch from 'node-fetch'
-import dotenv from 'dotenv'
 import qrcode from 'qrcode'
+import TelegramBot from 'node-telegram-bot-api'
+import 'dotenv/config'
 
-dotenv.config()
+const telegramToken = process.env.TELEGRAM_TOKEN
+const telegramChannelId = process.env.TELEGRAM_CHANNEL_ID
+const whatsappGroupId = process.env.WHATSAPP_GROUP_ID
 
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
-const TELEGRAM_CHANNEL_ID = process.env.TELEGRAM_CHANNEL_ID
-const WHATSAPP_GROUP_ID = process.env.WHATSAPP_GROUP_ID
+const bot = new TelegramBot(telegramToken, { polling: false })
 
-const alertPhrases = [
-  "Alert: Level Yellow",
-  "Alert: Level Blue",
-  "Alert: Level Red",
-  "Alert: Level Green",
-  "Тривога: Рівень Жовтий",
-  "Тривога: Рівень Синій",
-  "Тривога: Рівень Червоний",
-  "Відбій: Рівень Зелений"
-]
-
-if (alertPhrases.some(p => text.includes(p))) {
-  await bot.telegram.sendMessage(telegramChannelId, text)
-  console.log("📤 Переслано в Telegram:", text)
-} else {
-  console.log("⛔ Повідомлення пропущено:", text)
-}
-
-async function startBot() {
+const startBot = async () => {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info')
-  const { version } = await fetchLatestBaileysVersion()
 
   const sock = makeWASocket({
-    version,
     auth: state,
-    printQRInTerminal: false
-  })
-
-  sock.ev.on('connection.update', (update) => {
-    const { connection, lastDisconnect, qr } = update
-
-  if (qr) {
-  qrcode.toDataURL(qr, (err, url) => {
-    if (err) {
-      console.error('❌ Помилка генерації QR:', err)
-    } else {
-      console.log('📲 Відкрий це посилання в браузері та відскануй QR-код:\n')
-      console.log(url)
+    printQRInTerminal: false,
+    async getMessage() {
+      return { conversation: 'не знайдено повідомлення' }
     }
   })
-}
+
+  sock.ev.on('connection.update', async ({ connection, qr }) => {
+    if (qr) {
+      qrcode.toDataURL(qr, (err, url) => {
+        if (err) {
+          console.error('❌ QR генерація не вдалася:', err)
+        } else {
+          console.log('📲 Відкрий у браузері для сканування QR-коду:\n')
+          console.log(url)
+        }
+      })
+    }
+
+    if (connection === 'open') {
+      console.log('✅ Підключено до WhatsApp!')
+    }
 
     if (connection === 'close') {
-      const shouldReconnect =
-        (lastDisconnect?.error instanceof Boom) &&
-        lastDisconnect.error.output?.statusCode !== DisconnectReason.loggedOut
-      console.log('❌ Зʼєднання закрито. Перепідключення:', shouldReconnect)
+      const shouldReconnect = sock?.lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut
+      console.log('❌ Зʼєднання розірвано. Повторне підключення:', shouldReconnect)
       if (shouldReconnect) {
         startBot()
       }
-    } else if (connection === 'open') {
-      console.log('✅ Підключено до WhatsApp!')
-    }
-  })
-
-  sock.ev.on('messages.upsert', async ({ messages }) => {
-    const msg = messages[0]
-    if (!msg.message || msg.key.remoteJid !== WHATSAPP_GROUP_ID) return
-
-    const text = msg.message.conversation || msg.message.extendedTextMessage?.text
-    if (text && allowedMessages.includes(text.trim())) {
-      console.log(`📩 Пересилаю в Telegram: ${text}`)
-      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chat_id: TELEGRAM_CHANNEL_ID,
-          text
-        })
-      })
-    } else {
-      console.log(`⛔ Повідомлення пропущено: ${text?.slice(0, 100)}`)
     }
   })
 
   sock.ev.on('creds.update', saveCreds)
+
+  sock.ev.on('messages.upsert', async ({ messages, type }) => {
+    if (type !== 'notify') return
+    for (const msg of messages) {
+      const fromGroup = msg.key.remoteJid === whatsappGroupId
+      const isText = msg.message?.conversation || msg.message?.extendedTextMessage?.text
+
+      if (!fromGroup || !isText) return
+
+      const text = msg.message.conversation || msg.message.extendedTextMessage.text
+      const alertPhrases = [
+        'Alert: Level Yellow',
+        'Тривога: Рівень Жовтий',
+        'Alert: Level Blue',
+        'Тривога: Рівень Синій',
+        'Alert: Level Red',
+        'Тривога: Рівень Червоний',
+        'Alert: Level Green',
+        'Відбій: Рівень Зелений'
+      ]
+
+      if (alertPhrases.some(p => text.includes(p))) {
+        await bot.sendMessage(telegramChannelId, text)
+        console.log('📤 Переслано в Telegram:', text)
+      } else {
+        console.log('⛔ Повідомлення пропущено:', text)
+      }
+    }
+  })
 }
 
-startBot()
+startBot()іг
