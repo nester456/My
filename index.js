@@ -7,7 +7,7 @@ import {
 import { Boom } from '@hapi/boom'
 import fetch from 'node-fetch'
 import dotenv from 'dotenv'
-import qrcode from 'qrcode-terminal'
+import qrcode from 'qrcode'
 
 dotenv.config()
 
@@ -35,10 +35,16 @@ async function startBot() {
   sock.ev.on('connection.update', (update) => {
     const { connection, lastDisconnect, qr } = update
 
-    if (qr) {
-      console.log('📲 Скануй QR-код у WhatsApp:')
-      qrcode.generate(qr, { small: true })
+  if (qr) {
+  qrcode.toDataURL(qr, (err, url) => {
+    if (err) {
+      console.error('❌ Помилка генерації QR:', err)
+    } else {
+      console.log('📲 Відкрий це посилання в браузері та відскануй QR-код:\n')
+      console.log(url)
     }
+  })
+}
 
     if (connection === 'close') {
       const shouldReconnect =
