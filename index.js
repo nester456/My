@@ -1,9 +1,9 @@
 import { makeWASocket, useMultiFileAuthState, DisconnectReason } from '@whiskeysockets/baileys'
 import { Boom } from '@hapi/boom'
 import qrcode from 'qrcode'
-import fs from 'fs'
 import TelegramBot from 'node-telegram-bot-api'
 import 'dotenv/config'
+import fs from 'fs'
 
 const telegramToken = process.env.TELEGRAM_BOT_TOKEN
 const telegramChannelId = process.env.TELEGRAM_CHANNEL_ID
@@ -12,7 +12,7 @@ const whatsappGroupId = process.env.WHATSAPP_GROUP_ID
 const bot = new TelegramBot(telegramToken, { polling: false })
 
 const startBot = async () => {
-  const { state, saveCreds } = await useMultiFileAuthState('/mnt/auth') // Railway-compatible path
+  const { state, saveCreds } = await useMultiFileAuthState('auth')
 
   const sock = makeWASocket({
     auth: state,
@@ -24,14 +24,15 @@ const startBot = async () => {
 
   sock.ev.on('connection.update', async ({ connection, qr }) => {
     if (qr) {
-      // Збереження QR-коду у файл
-      qrcode.toFile('./qr.png', qr, { width: 300 }, (err) => {
-        if (err) {
-          console.error('❌ Не вдалося зберегти QR:', err)
-        } else {
-          console.log('📸 QR-код збережено у файл: qr.png')
-        }
+      const qrBuffer = await qrcode.toBuffer(qr)
+      fs.writeFileSync('qr.png', qrBuffer)
+
+      // Надсилаємо QR в Telegram
+      await bot.sendPhoto(telegramChannelId, qrBuffer, {
+        caption: '📲 Відскануй QR-код для підключення WhatsApp'
       })
+
+      console.log('✅ QR-код збережено у файл та надіслано в Telegram')
     }
 
     if (connection === 'open') {
@@ -51,14 +52,13 @@ const startBot = async () => {
 
   sock.ev.on('messages.upsert', async ({ messages, type }) => {
     if (type !== 'notify') return
-
     for (const msg of messages) {
       const fromGroup = msg.key.remoteJid === whatsappGroupId
       const isText = msg.message?.conversation || msg.message?.extendedTextMessage?.text
+
       if (!fromGroup || !isText) return
 
       const text = msg.message.conversation || msg.message.extendedTextMessage.text
-
       const alertPhrases = [
         'Alert: Level Yellow',
         'Тривога: Рівень Жовтий',
