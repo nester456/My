@@ -15,12 +15,23 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN
 const TELEGRAM_CHANNEL_ID = process.env.TELEGRAM_CHANNEL_ID
 const WHATSAPP_GROUP_ID = process.env.WHATSAPP_GROUP_ID
 
-const allowedMessages = [
-  "⚠Alert: Level Yellow ⚠ ⚠Тривога: Рівень Жовтий ⚠",
-  "🔷Alert: Level Blue 🔷🔷Тривога: Рівень Синій 🔷",
-  "🚨Alert: Level Red - Proceed to shelter! 🚨🚨Тривога: Рівень Червоний, Пройдіть в укриття! 🚨",
-  "✅Alert: Level Green ✅ ✅Відбій: Рівень Зелений ✅"
+const alertPhrases = [
+  "Alert: Level Yellow",
+  "Alert: Level Blue",
+  "Alert: Level Red",
+  "Alert: Level Green",
+  "Тривога: Рівень Жовтий",
+  "Тривога: Рівень Синій",
+  "Тривога: Рівень Червоний",
+  "Відбій: Рівень Зелений"
 ]
+
+if (alertPhrases.some(p => text.includes(p))) {
+  await bot.telegram.sendMessage(telegramChannelId, text)
+  console.log("📤 Переслано в Telegram:", text)
+} else {
+  console.log("⛔ Повідомлення пропущено:", text)
+}
 
 async function startBot() {
   const { state, saveCreds } = await useMultiFileAuthState('auth_info')
